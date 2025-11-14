@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Copy, Save, MessageSquare } from "lucide-react";
+import { Copy, Save, MessageSquare, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -23,6 +23,8 @@ export default function PromptDetailDialog({ open, onOpenChange, prompt }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [promptText, setPromptText] = useState("");
+  const [copiedId, setCopiedId] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -38,14 +40,14 @@ export default function PromptDetailDialog({ open, onOpenChange, prompt }) {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.SavedPrompt.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savedPrompts'] });
+      queryClient.invalidateQueries({ queryKey: ["savedPrompts"] });
       setIsEditing(false);
     },
   });
 
   const handleSave = async () => {
     if (!prompt) return;
-    
+
     await updateMutation.mutateAsync({
       id: prompt.id,
       data: {
@@ -53,17 +55,33 @@ export default function PromptDetailDialog({ open, onOpenChange, prompt }) {
         description,
         prompt: promptText,
         generation_params: prompt.generation_params,
-        last_updated: new Date().toISOString()
-      }
+        last_updated: new Date().toISOString(),
+      },
     });
   };
 
-  const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(promptText);
+  const handleCopyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(promptText);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    } catch (err) {
+      console.error("Error al copiar prompt:", err);
+    }
+  };
+
+  const handleCopyId = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt.id);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    } catch (err) {
+      console.error("Error al copiar ID:", err);
+    }
   };
 
   const handleLoadInChat = () => {
-    localStorage.setItem('loadedPrompt', promptText);
+    localStorage.setItem("loadedPrompt", promptText);
     navigate(createPageUrl("Chat"));
     onOpenChange(false);
   };
@@ -78,11 +96,40 @@ export default function PromptDetailDialog({ open, onOpenChange, prompt }) {
             {isEditing ? "Editar Prompt" : "Detalles del Prompt"}
           </DialogTitle>
           <DialogDescription>
-            {isEditing ? "Modifica la información del prompt" : "Información completa del prompt guardado"}
+            {isEditing
+              ? "Modifica la información del prompt"
+              : "Información completa del prompt guardado"}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
+          {/* ID del Prompt */}
+          {!isEditing && (
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+              <Label className="text-xs text-slate-600 dark:text-slate-400 mb-1 block">
+                ID del Prompt
+              </Label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 text-sm font-mono text-slate-700 dark:text-slate-300 break-all">
+                  {prompt.id}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyId}
+                  className="h-8 w-8 shrink-0"
+                  title="Copiar ID"
+                >
+                  {copiedId ? (
+                    <Check className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="name">Nombre</Label>
             {isEditing ? (
@@ -106,7 +153,9 @@ export default function PromptDetailDialog({ open, onOpenChange, prompt }) {
                 className="h-20"
               />
             ) : (
-              <p className="text-gray-700">{description || "Sin descripción"}</p>
+              <p className="text-gray-700">
+                {description || "Sin descripción"}
+              </p>
             )}
           </div>
 
@@ -120,10 +169,27 @@ export default function PromptDetailDialog({ open, onOpenChange, prompt }) {
                 className="h-40 font-mono text-sm"
               />
             ) : (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
-                  {promptText}
-                </pre>
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto">
+                    <pre className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-mono">
+                      {promptText}
+                    </pre>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleCopyPrompt}
+                    className="h-8 w-8 shrink-0 mt-1"
+                    title="Copiar prompt"
+                  >
+                    {copiedPrompt ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -152,7 +218,7 @@ export default function PromptDetailDialog({ open, onOpenChange, prompt }) {
               <Button variant="outline" onClick={() => setIsEditing(false)}>
                 Cancelar
               </Button>
-              <Button 
+              <Button
                 onClick={handleSave}
                 disabled={updateMutation.isPending}
                 className="bg-gradient-to-r from-purple-500 to-blue-600"
@@ -163,14 +229,10 @@ export default function PromptDetailDialog({ open, onOpenChange, prompt }) {
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={handleCopyPrompt}>
-                <Copy className="w-4 h-4 mr-2" />
-                Copiar
-              </Button>
               <Button variant="outline" onClick={() => setIsEditing(true)}>
                 Editar
               </Button>
-              <Button 
+              <Button
                 onClick={handleLoadInChat}
                 className="bg-gradient-to-r from-purple-500 to-blue-600"
               >

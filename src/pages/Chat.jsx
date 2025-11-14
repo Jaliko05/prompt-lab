@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import configService from "@/api/configService";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Image as ImageIcon, Loader2, Sparkles, X } from "lucide-react";
+import {
+  Send,
+  Image as ImageIcon,
+  Loader2,
+  Sparkles,
+  X,
+  Plus,
+} from "lucide-react";
+import logo from "/Logo_41_anos.svg";
 
 import ChatMessage from "../components/chat/ChatMessage";
 
@@ -12,34 +21,56 @@ export default function ChatPage() {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [conversations, setConversations] = useState(() => {
+    // Cargar conversaciones desde localStorage al iniciar
+    const saved = localStorage.getItem("chatHistory");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [sessionId, setSessionId] = useState(() => {
+    // Cargar o crear un nuevo session_id
+    const saved = localStorage.getItem("currentSessionId");
+    return saved || `session_${Date.now()}`;
+  });
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
 
-  const { data: conversations = [], isLoading } = useQuery({
-    queryKey: ['conversations'],
-    queryFn: () => base44.entities.Conversation.list('-created_date'),
-    initialData: [],
-  });
+  // Obtener configuración directamente desde localStorage
+  const [currentConfig, setCurrentConfig] = useState(() => configService.get());
 
-  const { data: configs = [] } = useQuery({
-    queryKey: ['modelConfigs'],
-    queryFn: () => base44.entities.ModelConfig.list('-created_date', 1),
-    initialData: [],
-  });
+  // Actualizar configuración cuando cambie en localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setCurrentConfig(configService.get());
+    };
 
-  const currentConfig = configs[0] || {
-    temperature: 0.7,
-    top_p: 0.9,
-    max_length_tokens: 2048
-  };
+    window.addEventListener("storage", handleStorageChange);
+    // También revisar cambios cada vez que el componente se enfoca
+    window.addEventListener("focus", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleStorageChange);
+    };
+  }, []);
 
   const createConversationMutation = useMutation({
     mutationFn: (data) => base44.entities.Conversation.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    onSuccess: (newConversation) => {
+      // Agregar la nueva conversación al estado local
+      setConversations((prev) => {
+        const updated = [...prev, newConversation];
+        // Guardar en localStorage
+        localStorage.setItem("chatHistory", JSON.stringify(updated));
+        return updated;
+      });
     },
   });
+
+  // Guardar sessionId en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem("currentSessionId", sessionId);
+  }, [sessionId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,6 +79,16 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [conversations]);
+
+  // Función para iniciar una nueva conversación
+  const handleNewConversation = () => {
+    setConversations([]);
+    setSessionId(`session_${Date.now()}`);
+    localStorage.removeItem("chatHistory");
+    localStorage.setItem("currentSessionId", `session_${Date.now()}`);
+    setPrompt("");
+    removeImage();
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -74,24 +115,35 @@ export default function ChatPage() {
 
     setIsProcessing(true);
     try {
-      let imageUrl = null;
+      // Obtener la configuración más reciente antes de enviar
+      const config = configService.get();
+      console.log("📋 Configuración usada para el mensaje:", config);
+
+      // Convertir imagen a base64 si existe
+      let imageBase64 = null;
       if (imageFile) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file: imageFile });
-        imageUrl = file_url;
+        const reader = new FileReader();
+        imageBase64 = await new Promise((resolve, reject) => {
+          reader.onloadend = () => {
+            // Remover el prefijo "data:image/...;base64,"
+            const base64 = reader.result.split(",")[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
       }
 
-      const llmPrompt = `${prompt}${imageUrl ? '\n\n[Imagen adjunta en el contexto]' : ''}`;
-      
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: llmPrompt,
-        file_urls: imageUrl ? [imageUrl] : undefined,
-      });
-
-      await createConversationMutation.mutateAsync({
+      // Enviar directamente a tu API usando el adapter de base44
+      const result = await createConversationMutation.mutateAsync({
         prompt: prompt,
-        response: result,
-        image_url: imageUrl,
-        model_params: currentConfig
+        temperature: config.temperature,
+        max_tokens: config.max_length_tokens,
+        top_p: config.top_p,
+        system_instructions: config.system_instructions,
+        image_base64: imageBase64,
+        image_preview: imagePreview, // Pasar el preview para mostrarlo en el chat
+        session_id: sessionId, // Usar el mismo session_id para toda la conversación
       });
 
       setPrompt("");
@@ -103,7 +155,7 @@ export default function ChatPage() {
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -115,18 +167,18 @@ export default function ChatPage() {
         <div className="max-w-3xl mx-auto space-y-4">
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-20">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg mb-6">
-                <Sparkles className="w-10 h-10 text-white" />
-              </div>
+              <img src={logo} alt="Logo" className="w-11 h-11" />
+
               <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
-                Bienvenido a PromptLab
+                Bienvenido a NeuroScore
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-center max-w-md">
-                Inicia una conversación con la IA. Escribe un prompt o sube una imagen para comenzar.
+                Inicia una conversación con la IA de Sistemas GyG. Escribe un
+                prompt o sube una imagen para comenzar.
               </p>
             </div>
           ) : (
-            conversations.slice().reverse().map((conversation) => (
+            conversations.map((conversation) => (
               <ChatMessage key={conversation.id} conversation={conversation} />
             ))
           )}
@@ -138,9 +190,9 @@ export default function ChatPage() {
         <div className="max-w-3xl mx-auto">
           {imagePreview && (
             <div className="mb-3 relative inline-block">
-              <img 
-                src={imagePreview} 
-                alt="Preview" 
+              <img
+                src={imagePreview}
+                alt="Preview"
                 className="h-20 w-20 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
               />
               <Button
@@ -153,7 +205,7 @@ export default function ChatPage() {
               </Button>
             </div>
           )}
-          
+
           <div className="flex gap-2 items-end">
             <input
               ref={fileInputRef}
@@ -162,16 +214,31 @@ export default function ChatPage() {
               onChange={handleImageChange}
               className="hidden"
             />
+
+            {conversations.length > 0 && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleNewConversation}
+                className="shrink-0 h-10 w-10 rounded-lg border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                disabled={isProcessing}
+                title="Nueva Conversación"
+              >
+                <Plus className="w-5 h-5" />
+              </Button>
+            )}
+
             <Button
               variant="outline"
               size="icon"
               onClick={() => fileInputRef.current?.click()}
               className="shrink-0 h-10 w-10 rounded-lg border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
               disabled={isProcessing}
+              title="Subir imagen"
             >
               <ImageIcon className="w-5 h-5" />
             </Button>
-            
+
             <Textarea
               placeholder="Escribe tu mensaje aquí..."
               value={prompt}
@@ -181,7 +248,7 @@ export default function ChatPage() {
               className="min-h-[44px] max-h-[120px] resize-none border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm"
               rows={1}
             />
-            
+
             <Button
               onClick={handleSendMessage}
               disabled={isProcessing || (!prompt.trim() && !imageFile)}

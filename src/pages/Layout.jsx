@@ -1,8 +1,15 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { MessageSquare, Users, Settings, Save, Sparkles, Moon, Sun } from "lucide-react";
+import {
+  MessageSquare,
+  Users,
+  Settings,
+  Save,
+  Sparkles,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -17,6 +24,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+
+import logo from "/Logo_41_anos.svg";
 
 const navigationItems = [
   {
@@ -43,19 +52,19 @@ const navigationItems = [
 
 export default function Layout({ children }) {
   const location = useLocation();
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState("light");
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'light';
+    const savedTheme = localStorage.getItem("theme") || "light";
     setTheme(savedTheme);
-    document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+    document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
+    const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.classList.toggle('dark', newTheme === 'dark');
+    localStorage.setItem("theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
   return (
@@ -86,16 +95,18 @@ export default function Layout({ children }) {
         <Sidebar className="border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <SidebarHeader className="border-b border-slate-200 dark:border-slate-800 p-5">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center shadow-sm">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
+              <img src={logo} alt="Logo" className="w-11 h-11" />
               <div>
-                <h2 className="font-semibold text-slate-900 dark:text-slate-100 text-base">PromptLab</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Entorno de Pruebas IA</p>
+                <h2 className="font-semibold text-slate-900 dark:text-slate-100 text-base">
+                  NeuroScore
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Entorno de Pruebas IA Sistemas GyG
+                </p>
               </div>
             </div>
           </SidebarHeader>
-          
+
           <SidebarContent className="p-3">
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 py-2 mb-1">
@@ -105,15 +116,18 @@ export default function Layout({ children }) {
                 <SidebarMenu>
                   {navigationItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild 
+                      <SidebarMenuButton
+                        asChild
                         className={`transition-all duration-150 rounded-lg mb-0.5 ${
-                          location.pathname === item.url 
-                            ? 'bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-medium' 
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          location.pathname === item.url
+                            ? "bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-medium"
+                            : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         }`}
                       >
-                        <Link to={item.url} className="flex items-center gap-3 px-3 py-2">
+                        <Link
+                          to={item.url}
+                          className="flex items-center gap-3 px-3 py-2"
+                        >
                           <item.icon className="w-4 h-4" />
                           <span className="text-sm">{item.title}</span>
                         </Link>
@@ -131,7 +145,7 @@ export default function Layout({ children }) {
                 onClick={toggleTheme}
                 className="w-full justify-start gap-3 text-sm border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                {theme === 'light' ? (
+                {theme === "light" ? (
                   <>
                     <Moon className="w-4 h-4" />
                     <span>Modo Oscuro</span>
@@ -153,8 +167,10 @@ export default function Layout({ children }) {
               <div className="flex items-center gap-4">
                 <SidebarTrigger className="hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg" />
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">PromptLab</h1>
+                  <img src={logo} alt="Logo" className="w-11 h-11" />
+                  <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    NeuroScore
+                  </h1>
                 </div>
               </div>
               <Button
@@ -163,7 +179,7 @@ export default function Layout({ children }) {
                 onClick={toggleTheme}
                 className="dark:hover:bg-slate-800"
               >
-                {theme === 'light' ? (
+                {theme === "light" ? (
                   <Moon className="w-5 h-5" />
                 ) : (
                   <Sun className="w-5 h-5" />
@@ -172,9 +188,7 @@ export default function Layout({ children }) {
             </div>
           </header>
 
-          <div className="flex-1 overflow-auto">
-            {children}
-          </div>
+          <div className="flex-1 overflow-auto">{children}</div>
         </main>
       </div>
     </SidebarProvider>
