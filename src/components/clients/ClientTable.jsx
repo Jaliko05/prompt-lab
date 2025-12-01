@@ -8,12 +8,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { Pencil, Trash2, Eye, EyeOff, Activity } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-export default function ClientTable({ clients, isLoading, onEdit, onDelete }) {
+export default function ClientTable({
+  clients,
+  isLoading,
+  onEdit,
+  onDelete,
+  onViewStatus,
+}) {
   const [visibleKeys, setVisibleKeys] = React.useState({});
 
   const toggleKeyVisibility = (id) => {
@@ -72,7 +78,7 @@ export default function ClientTable({ clients, isLoading, onEdit, onDelete }) {
         <TableBody>
           {clients.map((client) => (
             <TableRow
-              key={client.id}
+              key={client.client_name}
               className="hover:bg-blue-50/30 dark:hover:bg-slate-700/30 transition-colors"
             >
               <TableCell className="font-medium dark:text-white">
@@ -81,18 +87,18 @@ export default function ClientTable({ clients, isLoading, onEdit, onDelete }) {
               <TableCell>
                 <div className="flex items-center gap-2">
                   <code className="px-3 py-1 bg-gray-100 dark:bg-slate-700 rounded-lg text-sm font-mono dark:text-gray-300">
-                    {visibleKeys[client.id]
+                    {visibleKeys[client.client_name]
                       ? client.secret_key || "••••••••••••••••"
                       : "••••••••••••••••"}
                   </code>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => toggleKeyVisibility(client.id)}
+                    onClick={() => toggleKeyVisibility(client.client_name)}
                     className="h-8 w-8 dark:hover:bg-slate-600"
                     title="El secreto no se puede visualizar por seguridad"
                   >
-                    {visibleKeys[client.id] ? (
+                    {visibleKeys[client.client_name] ? (
                       <EyeOff className="w-4 h-4" />
                     ) : (
                       <Eye className="w-4 h-4" />
@@ -101,10 +107,21 @@ export default function ClientTable({ clients, isLoading, onEdit, onDelete }) {
                 </div>
               </TableCell>
               <TableCell className="text-gray-600 dark:text-gray-400">
-                {format(new Date(client.created_date), "PPp", { locale: es })}
+                {client.created_date
+                  ? format(new Date(client.created_date), "PPp", { locale: es })
+                  : "N/A"}
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => onViewStatus(client)}
+                    className="hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-300 dark:border-slate-600"
+                    title="Ver estado del cliente"
+                  >
+                    <Activity className="w-4 h-4" />
+                  </Button>
                   <Button
                     variant="outline"
                     size="icon"
@@ -116,7 +133,7 @@ export default function ClientTable({ clients, isLoading, onEdit, onDelete }) {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => onDelete(client.id)}
+                    onClick={() => onDelete(client.client_name)}
                     className="hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 hover:text-red-600 dark:border-slate-600"
                   >
                     <Trash2 className="w-4 h-4" />

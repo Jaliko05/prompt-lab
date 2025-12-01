@@ -1,36 +1,55 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import clientService from "@/api/clientService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Plus, Search, Users } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 import ClientTable from "../components/clients/ClientTable";
 import ClientDialog from "../components/clients/ClientDialog";
+import ClientStatusDialog from "../components/clients/ClientStatusDialog";
 
 export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDialog, setShowDialog] = useState(false);
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ['clients'],
-    queryFn: () => base44.entities.Client.list('-created_date'),
+    queryKey: ["clients"],
+    queryFn: () => clientService.list(),
     initialData: [],
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Client.delete(id),
+    mutationFn: (clientName) => clientService.deleteSecret(clientName),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      toast({
+        title: "Cliente eliminado",
+        description: "El secreto del cliente se eliminó exitosamente",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al eliminar",
+        description:
+          error.response?.data?.msg ||
+          "Ocurrió un error al eliminar el secreto",
+        variant: "destructive",
+      });
     },
   });
 
-  const filteredClients = clients.filter(client =>
-    client.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.secret_key?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredClients = clients.filter(
+    (client) =>
+      client.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.secret_key?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleEdit = (client) => {
@@ -38,15 +57,29 @@ export default function ClientsPage() {
     setShowDialog(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("¿Estás seguro de eliminar este cliente?")) {
-      await deleteMutation.mutateAsync(id);
+  const handleViewStatus = (client) => {
+    setSelectedClient(client.client_name);
+    setShowStatusDialog(true);
+  };
+
+  const handleDelete = async (clientName) => {
+    if (
+      window.confirm(
+        `¿Estás seguro de eliminar el secreto del cliente "${clientName}"?`
+      )
+    ) {
+      await deleteMutation.mutateAsync(clientName);
     }
   };
 
   const handleCloseDialog = () => {
     setShowDialog(false);
     setEditingClient(null);
+  };
+
+  const handleCloseStatusDialog = () => {
+    setShowStatusDialog(false);
+    setSelectedClient(null);
   };
 
   return (
@@ -89,6 +122,7 @@ export default function ClientsPage() {
               isLoading={isLoading}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onViewStatus={handleViewStatus}
             />
           </CardContent>
         </Card>
@@ -97,6 +131,12 @@ export default function ClientsPage() {
           open={showDialog}
           onOpenChange={handleCloseDialog}
           client={editingClient}
+        />
+
+        <ClientStatusDialog
+          open={showStatusDialog}
+          onOpenChange={handleCloseStatusDialog}
+          clientName={selectedClient}
         />
       </div>
     </div>

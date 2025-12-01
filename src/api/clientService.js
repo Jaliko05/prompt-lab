@@ -33,6 +33,33 @@ const clientService = {
   },
 
   /**
+   * Crea un nuevo cliente en el sistema
+   */
+  async createClient(clientName, clientDbPrefix) {
+    const response = await apiClient.post('/admin/add-client', {
+      client_name: clientName,
+      client_db_prefix: clientDbPrefix
+    });
+    return response.data;
+  },
+
+  /**
+   * Obtiene el estado de un cliente específico
+   */
+  async getClientStatus(clientName) {
+    const response = await apiClient.get(`/api/admin/client-status/${encodeURIComponent(clientName)}`);
+    return response.data;
+  },
+
+  /**
+   * Genera reporte de uso de un cliente
+   */
+  async getUsageReport(filters) {
+    const response = await apiClient.post('/api/admin/usage-report', filters);
+    return response.data;
+  },
+
+  /**
    * Crea un secreto JWT para un nuevo cliente
    */
   async createSecret(clientName, secretKey) {

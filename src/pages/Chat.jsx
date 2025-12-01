@@ -33,6 +33,7 @@ export default function ChatPage() {
   });
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const queryClient = useQueryClient();
 
   // Obtener configuración directamente desde localStorage
@@ -79,6 +80,15 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [conversations]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "44px"; // Reset height
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = Math.min(scrollHeight, 200) + "px"; // Max 200px
+    }
+  }, [prompt]);
 
   // Función para iniciar una nueva conversación
   const handleNewConversation = () => {
@@ -240,12 +250,13 @@ export default function ChatPage() {
             </Button>
 
             <Textarea
+              ref={textareaRef}
               placeholder="Escribe tu mensaje aquí..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyPress={handleKeyPress}
               disabled={isProcessing}
-              className="min-h-[44px] max-h-[120px] resize-none border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm"
+              className="min-h-[44px] max-h-[200px] resize-none border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm overflow-y-auto"
               rows={1}
             />
 
